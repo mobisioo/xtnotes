@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       menuPayload = {
         menu_button: {
           type: "web_app",
-          text: "باز کردن نوت‌پد",
+          text: "باز کردن یادداشت‌ها",
           web_app: { url: appUrl },
         },
       };

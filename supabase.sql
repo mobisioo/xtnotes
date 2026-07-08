@@ -218,7 +218,7 @@ $$;
 
 create or replace function public.app_create_note(
   p_session_token uuid,
-  p_title text default 'نوت جدید',
+  p_title text default 'یادداشت جدید',
   p_content text default '',
   p_language text default 'plaintext'
 )
@@ -247,7 +247,7 @@ begin
     insert into public.app_notes (user_id, title, content, language)
     values (
       v_user_id,
-      coalesce(nullif(trim(p_title), ''), 'نوت جدید'),
+      coalesce(nullif(trim(p_title), ''), 'یادداشت جدید'),
       coalesce(p_content, ''),
       v_language
     )
