@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0f17" />
+  <title>نوت‌پد | تم تیره</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <noscript>
+    <div class="noscript">برای استفاده از این برنامه، JavaScript باید فعال باشد.</div>
+  </noscript>
+
+  <main class="app-shell">
+    <section id="authView" class="auth-screen">
+      <form id="authForm" class="auth-card" autocomplete="on">
+        <div class="auth-brand">
+          <div class="logo-mark" aria-hidden="true">ن</div>
+          <h1>نوت‌پد</h1>
+          <p>یادداشت‌های شما، همیشه در دسترس</p>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="حالت ورود">
+          <button id="showLoginBtn" class="tab active" type="button">ورود</button>
+          <button id="showRegisterBtn" class="tab" type="button">ثبت‌نام</button>
+        </div>
+
+        <label class="field-group">
+          <span>نام کاربری</span>
+          <div class="input-shell">
+            <span class="field-icon" aria-hidden="true">👤</span>
+            <input
+              id="usernameInput"
+              type="text"
+              placeholder="نام کاربری خود را وارد کنید"
+              required
+              minlength="3"
+              maxlength="30"
+              autocomplete="username"
+              dir="ltr"
+            />
+          </div>
+        </label>
+
+        <label class="field-group">
+          <span>رمز عبور</span>
+          <div class="input-shell">
+            <span class="field-icon" aria-hidden="true">⌘</span>
+            <input
+              id="passwordInput"
+              type="password"
+              placeholder="۴ رقم وارد کنید؛ مثلاً 1234"
+              required
+              minlength="4"
+              pattern="[0-9]{4,}"
+              inputmode="numeric"
+              autocomplete="current-password"
+              dir="ltr"
+            />
+          </div>
+        </label>
+
+        <p class="auth-help">یوزرنیم فقط با حروف انگلیسی کوچک، عدد و خط زیر ساخته می‌شود؛ مثل <span dir="ltr">ali_123</span>. رمز عبور حداقل ۴ رقم باشد.</p>
+
+        <button id="submitAuthBtn" class="primary-btn" type="submit">ورود</button>
+        <p id="authMessage" class="message" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="notesView" class="notes-screen hidden">
+      <aside class="sidebar">
+        <header class="sidebar-brand">
+          <div>
+            <h2>نوت‌پد</h2>
+            <p>یادداشت‌های شما، همیشه در دسترس</p>
+          </div>
+          <div class="mini-logo" aria-hidden="true">ن</div>
+        </header>
+
+        <div class="search-box">
+          <input id="searchInput" type="search" placeholder="جستجو در یادداشت‌ها..." />
+        </div>
+
+        <div class="sidebar-title-row">
+          <span>یادداشت‌ها</span>
+          <span id="notesCount">۰ نوت</span>
+        </div>
+
+        <div id="notesList" class="notes-list" aria-live="polite"></div>
+
+        <footer class="sidebar-footer">
+          <button id="logoutBtn" class="icon-btn danger-soft" type="button">خروج</button>
+          <span id="lastSync">آماده</span>
+        </footer>
+      </aside>
+
+      <section class="editor-panel">
+        <header class="workspace-topbar">
+          <div class="profile-chip" aria-hidden="true">
+            <span>م</span>
+          </div>
+          <button id="newNoteBtn" class="primary-btn" type="button">+ یادداشت جدید</button>
+        </header>
+
+        <article class="editor-card">
+          <header class="editor-top">
+            <div>
+              <h2 id="editorHeading">افزودن یادداشت جدید</h2>
+              <p>ایده‌ها و افکار خود را یادداشت کنید.</p>
+            </div>
+            <span class="editor-icon" aria-hidden="true">▤</span>
+          </header>
+
+          <label class="field-group editor-field">
+            <span>عنوان یادداشت</span>
+            <div class="input-shell">
+              <span class="field-icon" aria-hidden="true">T</span>
+              <input id="noteTitle" class="title-input" type="text" placeholder="عنوانی برای یادداشت خود بنویسید..." maxlength="120" />
+            </div>
+          </label>
+
+          <label class="field-group editor-field editor-textarea-field">
+            <span>متن یادداشت</span>
+            <textarea id="noteContent" placeholder="اینجا بنویسید..." spellcheck="false"></textarea>
+          </label>
+
+          <div class="quick-tags" aria-label="دسته‌بندی ظاهری">
+            <span class="quick-tags-label">دسته‌بندی</span>
+            <button class="tag-chip active" type="button">شخصی</button>
+            <button class="tag-chip" type="button">کار</button>
+            <button class="tag-chip" type="button">ایده</button>
+            <button class="tag-chip" type="button">سفر</button>
+            <button class="tag-chip add" type="button">+</button>
+          </div>
+
+          <footer class="editor-footer">
+            <button id="deleteNoteBtn" class="danger-btn" type="button">حذف</button>
+            <div class="footer-actions">
+              <span class="hint">Ctrl + Enter برای ذخیره</span>
+              <button id="pinNoteBtn" class="outline-btn" type="button">پین</button>
+              <button id="saveNoteBtn" class="primary-btn" type="button">ذخیره</button>
+            </div>
+          </footer>
+
+          <p id="noteMessage" class="message editor-message" aria-live="polite"></p>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
