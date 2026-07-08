@@ -9,6 +9,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   },
 });
 
+const telegramWebApp = window.Telegram?.WebApp;
+if (telegramWebApp) {
+  telegramWebApp.ready();
+  telegramWebApp.expand();
+  document.documentElement.classList.add("telegram-webapp");
+}
+
 const STORAGE_KEY = "notepad_custom_session_v4";
 const USERNAME_PATTERN = /^[a-z0-9_]{3,30}$/;
 const PASSWORD_PATTERN = /^[0-9]{4,}$/;

@@ -716,3 +716,14 @@ textarea:focus {
     width: 100%;
   }
 }
+
+/* Telegram Mini App polish */
+.telegram-webapp body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.telegram-webapp .app-shell {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}

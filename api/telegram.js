@@ -9,13 +9,18 @@ const requiredEnv = [
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
 
+const optionalEnv = ["PUBLIC_APP_URL"];
+
 function getSafeDiagnostics() {
   return {
     ok: true,
     endpoint: "telegram webhook",
     message: "Endpoint is deployed. Telegram must call this URL with POST.",
-    env: Object.fromEntries(requiredEnv.map((name) => [name, Boolean(process.env[name])])),
-    ui: "button-based v10",
+    env: Object.fromEntries([
+      ...requiredEnv.map((name) => [name, Boolean(process.env[name])]),
+      ...optionalEnv.map((name) => [name, Boolean(process.env[name])]),
+    ]),
+    ui: "button-based v11 edit + webapp",
   };
 }
 
@@ -23,6 +28,22 @@ function getEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing environment variable: ${name}`);
   return value;
+}
+
+function getAppUrl() {
+  const explicit = String(process.env.PUBLIC_APP_URL || "").trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  const vercelUrl = String(process.env.VERCEL_URL || "").trim();
+  if (vercelUrl) return `https://${vercelUrl}`.replace(/\/$/, "");
+
+  return "";
+}
+
+function webAppButton() {
+  const url = getAppUrl();
+  if (!url) return { text: "🌐 وب‌اپ", callback_data: "webapp_missing" };
+  return { text: "🌐 باز کردن وب‌اپ", web_app: { url } };
 }
 
 function getSupabase() {
@@ -64,6 +85,7 @@ function mainKeyboard(isLinked = false) {
     return {
       inline_keyboard: [
         [{ text: "🔗 اتصال حساب", callback_data: "connect" }],
+        [webAppButton()],
         [{ text: "ℹ️ راهنما", callback_data: "help" }],
       ],
     };
@@ -79,6 +101,7 @@ function mainKeyboard(isLinked = false) {
         { text: "🔎 جستجو", callback_data: "search" },
         { text: "ℹ️ راهنما", callback_data: "help" },
       ],
+      [webAppButton()],
       [{ text: "🔌 قطع اتصال", callback_data: "unlink" }],
     ],
   };
@@ -107,8 +130,10 @@ function buildHelp() {
     "➕ افزودن یادداشت",
     "📝 دیدن لیست یادداشت‌ها",
     "🔎 جستجو داخل یادداشت‌ها",
+    "✏️ ویرایش متن یادداشت",
     "📌 پین/آن‌پین یادداشت",
     "🗑 حذف یادداشت با تأیید",
+    "🌐 باز کردن وب‌اپ داخل تلگرام",
     "",
     "برای اتصال حساب، فقط یک بار این دستور را بفرست:",
     "/connect username password",
@@ -352,8 +377,12 @@ function noteActionKeyboard(note) {
   return {
     inline_keyboard: [
       [
+        { text: "✏️ ویرایش متن", callback_data: `edit:${note.id}` },
         { text: note.is_pinned ? "📍 برداشتن پین" : "📌 پین کردن", callback_data: `pin:${note.id}` },
+      ],
+      [
         { text: "🗑 حذف", callback_data: `del:${note.id}` },
+        webAppButton(),
       ],
       [{ text: "📝 برگشت به لیست", callback_data: "notes" }],
       [{ text: "🏠 منوی اصلی", callback_data: "menu" }],
@@ -408,6 +437,87 @@ async function createTelegramNote({ supabase, chatId, title, content }) {
       [{ text: "🏠 منوی اصلی", callback_data: "menu" }],
     ],
   });
+}
+
+async function updateTelegramNote({ supabase, chatId, noteId, text }) {
+  const linked = await requireLinked(supabase, chatId);
+  if (!linked) return;
+
+  const note = await fetchNoteById(supabase, linked.user_id, noteId);
+  if (!note) {
+    await clearBotState(supabase, chatId);
+    await sendMessage(chatId, "این یادداشت پیدا نشد یا حذف شده است.", backKeyboard());
+    return;
+  }
+
+  const raw = String(text || "").trim();
+  if (!raw) {
+    await setBotState(supabase, chatId, "awaiting_edit_note", { noteId });
+    await sendMessage(chatId, "متن جدید خالی است. دوباره متن یادداشت را بفرست:", cancelKeyboard());
+    return;
+  }
+
+  let title = note.title || "بدون عنوان";
+  let content = raw;
+
+  if (raw.includes("|")) {
+    const parts = raw.split("|");
+    title = (parts[0] || "").trim() || title;
+    content = parts.slice(1).join("|").trim() || "";
+  }
+
+  const { data, error } = await supabase
+    .from("app_notes")
+    .update({
+      title: title.slice(0, 120),
+      content,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", note.id)
+    .eq("user_id", linked.user_id)
+    .select("id,title,content,is_pinned,updated_at")
+    .single();
+
+  if (error) throw error;
+
+  await clearBotState(supabase, chatId);
+  await updateLastSeen(supabase, chatId);
+
+  await sendMessage(chatId, "یادداشت ویرایش شد ✅", {
+    inline_keyboard: [
+      [{ text: "مشاهده یادداشت", callback_data: `view:${data.id}` }],
+      [
+        { text: "✏️ ویرایش دوباره", callback_data: `edit:${data.id}` },
+        { text: "📝 لیست یادداشت‌ها", callback_data: "notes" },
+      ],
+      [{ text: "🏠 منوی اصلی", callback_data: "menu" }],
+    ],
+  });
+}
+
+async function askEditNote({ supabase, chatId, messageId, noteId }) {
+  const linked = await requireLinked(supabase, chatId);
+  if (!linked) return;
+
+  const note = await fetchNoteById(supabase, linked.user_id, noteId);
+  if (!note) {
+    await editMessage(chatId, messageId, "این یادداشت پیدا نشد یا حذف شده است.", backKeyboard());
+    return;
+  }
+
+  await setBotState(supabase, chatId, "awaiting_edit_note", { noteId });
+  const text = [
+    `در حال ویرایش: ${note.title || "بدون عنوان"}`,
+    "",
+    "متن جدید یادداشت را بفرست.",
+    "اگر می‌خواهی عنوان هم تغییر کند، این فرمت را بفرست:",
+    "عنوان جدید | متن جدید",
+    "",
+    "متن فعلی:",
+    truncate(note.content || "بدون متن", 900),
+  ].join("\n");
+
+  await editMessage(chatId, messageId, text, cancelKeyboard());
 }
 
 async function handleSearchText({ supabase, chatId, keyword, messageId = null }) {
@@ -597,10 +707,25 @@ async function handleCallback(update) {
     return;
   }
 
+  if (data === "webapp_missing") {
+    await editMessage(
+      chatId,
+      messageId,
+      "آدرس وب‌اپ تنظیم نشده است. داخل Vercel مقدار PUBLIC_APP_URL را بگذار و Redeploy بگیر.",
+      backKeyboard(),
+    );
+    return;
+  }
+
   const [action, noteId] = data.split(":");
 
   if (action === "view" && noteId) {
     await showNote({ supabase, chatId, messageId, noteId });
+    return;
+  }
+
+  if (action === "edit" && noteId) {
+    await askEditNote({ supabase, chatId, messageId, noteId });
     return;
   }
 
@@ -681,6 +806,17 @@ async function handleMessage(update) {
 
   if (linked.bot_state === "awaiting_search") {
     await handleSearchText({ supabase, chatId, keyword: text });
+    return;
+  }
+
+  if (linked.bot_state === "awaiting_edit_note") {
+    const noteId = linked.bot_payload?.noteId;
+    if (!noteId) {
+      await clearBotState(supabase, chatId);
+      await sendMessage(chatId, "شناسه یادداشت برای ویرایش پیدا نشد. دوباره از لیست یادداشت‌ها انتخاب کن.", backKeyboard());
+      return;
+    }
+    await updateTelegramNote({ supabase, chatId, noteId, text });
     return;
   }
 

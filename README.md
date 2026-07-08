@@ -261,3 +261,40 @@ https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram
 بعد از deploy نسخه جدید، فایل `supabase.sql` را یک بار دیگر اجرا کن تا ستون‌های state بات اضافه شوند.
 جزئیات کامل در فایل `TELEGRAM_SETUP.md` آمده است.
 
+
+---
+
+## تغییرات نسخه v11 - Telegram Buttons + Edit + Web App
+
+این نسخه بات تلگرام را کامل‌تر می‌کند:
+
+- دکمه «ویرایش متن» برای هر یادداشت اضافه شد.
+- کاربر می‌تواند متن یادداشت را داخل تلگرام ویرایش کند.
+- اگر متن جدید به شکل `عنوان جدید | متن جدید` ارسال شود، عنوان و متن هر دو تغییر می‌کنند.
+- دکمه `🌐 باز کردن وب‌اپ` به منوی بات اضافه شد.
+- فایل `api/telegram-setup.js` اضافه شد تا Command Menu کنار تکست‌باکس تلگرام تنظیم شود.
+- وب‌اپ با Telegram Web App SDK سازگارتر شد و داخل تلگرام expand/ready می‌شود.
+
+برای اینکه دکمه وب‌اپ داخل تلگرام کار کند، این Env را داخل Vercel اضافه کن:
+
+```env
+PUBLIC_APP_URL=https://YOUR-VERCEL-DOMAIN.vercel.app
+```
+
+بعد از Deploy، برای ست‌کردن commands کنار تکست‌باکس، این URL را باز کن:
+
+```txt
+https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram-setup?secret=TELEGRAM_WEBHOOK_SECRET
+```
+
+اگر می‌خواهی دکمه پایین تلگرام به‌جای Command Menu مستقیماً وب‌اپ را باز کند:
+
+```txt
+https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram-setup?secret=TELEGRAM_WEBHOOK_SECRET&menu=webapp
+```
+
+برای راه‌اندازی کامل، فایل زیر را بخوان:
+
+```txt
+TELEGRAM_SETUP.md
+```
