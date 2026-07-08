@@ -54,6 +54,16 @@ create index if not exists app_sessions_expires_at_idx on public.app_sessions(ex
 create index if not exists app_notes_user_id_idx on public.app_notes(user_id);
 create index if not exists app_notes_updated_at_idx on public.app_notes(updated_at desc);
 
+-- IMPORTANT MIGRATION FIX:
+-- PostgreSQL cannot change the RETURN TABLE shape of an existing function using CREATE OR REPLACE.
+-- v12 adds the `language` column to note RPC outputs, so old RPC functions must be dropped first.
+drop function if exists public.app_list_notes(uuid);
+drop function if exists public.app_create_note(uuid, text, text);
+drop function if exists public.app_create_note(uuid, text, text, text);
+drop function if exists public.app_update_note(uuid, uuid, text, text, boolean);
+drop function if exists public.app_update_note(uuid, uuid, text, text, boolean, text);
+drop function if exists public.app_delete_note(uuid, uuid);
+
 create or replace function public.app_get_user_id(p_session_token uuid)
 returns uuid
 language plpgsql
@@ -171,9 +181,6 @@ begin
   return true;
 end;
 $$;
-
-drop function if exists public.app_create_note(uuid, text, text);
-drop function if exists public.app_update_note(uuid, uuid, text, text, boolean);
 
 create or replace function public.app_list_notes(p_session_token uuid)
 returns table (

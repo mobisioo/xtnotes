@@ -320,3 +320,15 @@ TELEGRAM_SETUP.md
 ### نکته مهم دیتابیس
 
 بعد از جایگزینی این نسخه، فایل `supabase.sql` را یک‌بار در Supabase اجرا کن، چون ستون `language` و امضای جدید RPCهای `app_create_note` و `app_update_note` اضافه شده‌اند.
+
+
+## رفع خطای تغییر return type تابع‌ها
+
+اگر هنگام اجرای SQL خطای زیر دیدی:
+
+```txt
+ERROR: 42P13: cannot change return type of existing function
+HINT: Use DROP FUNCTION app_list_notes(uuid) first.
+```
+
+این نسخه اصلاح شده و ابتدای فایل `supabase.sql` قبل از ساخت RPCهای جدید، تابع‌های قدیمی را `DROP FUNCTION IF EXISTS` می‌کند. کافی است همین `supabase.sql` نسخه v12.1 را کامل اجرا کنی.
