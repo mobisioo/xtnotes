@@ -329,8 +329,16 @@ create table if not exists public.app_telegram_links (
   first_name text,
   user_id uuid not null references public.app_users(id) on delete cascade,
   linked_at timestamptz not null default now(),
-  last_seen_at timestamptz not null default now()
+  last_seen_at timestamptz not null default now(),
+  bot_state text,
+  bot_payload jsonb
 );
+
+alter table public.app_telegram_links
+  add column if not exists bot_state text;
+
+alter table public.app_telegram_links
+  add column if not exists bot_payload jsonb;
 
 alter table public.app_telegram_links enable row level security;
 revoke all on public.app_telegram_links from anon, authenticated;

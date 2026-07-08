@@ -1,57 +1,64 @@
-# اتصال دیتابیس Supabase به بات تلگرام
+# راه‌اندازی بات تلگرام دکمه‌ای
 
-این نسخه یک Webhook برای Telegram Bot روی Vercel اضافه کرده است:
+این نسخه، بات تلگرام را به‌صورت دکمه‌ای پیاده می‌کند.
 
-```txt
-api/telegram.js
-```
+## امکانات بات
 
-بات از همان دیتابیس پروژه استفاده می‌کند و نوت‌ها را داخل جدول `app_notes` ذخیره می‌کند.
+- منوی اصلی دکمه‌ای
+- اتصال حساب وب‌اپ به تلگرام
+- افزودن یادداشت با دکمه
+- نمایش لیست یادداشت‌ها با دکمه
+- مشاهده جزئیات هر یادداشت
+- پین و آن‌پین کردن یادداشت
+- حذف یادداشت با تایید دکمه‌ای
+- جستجو با دکمه
+- قطع اتصال با تایید
 
-## 1. اجرای SQL جدید
+فقط دو مورد هنوز پیام متنی لازم دارند:
 
-داخل Supabase برو به:
-
-```txt
-SQL Editor → New query
-```
-
-کل فایل `supabase.sql` همین نسخه را اجرا کن. اگر قبلاً SQL نسخه‌های قبلی را اجرا کرده‌ای، مشکلی نیست؛ بخش جدید فقط جدول زیر را اضافه می‌کند:
-
-```txt
-app_telegram_links
-```
-
-این جدول اتصال بین `chat_id` تلگرام و کاربر داخلی پروژه را ذخیره می‌کند.
-
-## 2. ساخت بات در تلگرام
-
-در BotFather یک بات بساز و Bot Token را بگیر.
-
-## 3. تنظیم Environment Variables در Vercel
-
-در Vercel برو به:
+1. اتصال حساب:
 
 ```txt
-Project → Settings → Environment Variables
+/connect username password
 ```
 
-این مقدارها را اضافه کن:
+مثال:
+
+```txt
+/connect ali_123 1234
+```
+
+2. متن یادداشت یا کلمه جستجو، چون محتوای دلخواه باید از کاربر گرفته شود.
+
+## Environment Variables در Vercel
+
+در Vercel این مقدارها را تنظیم کن:
 
 ```env
-TELEGRAM_BOT_TOKEN=توکن بات تلگرام
-TELEGRAM_WEBHOOK_SECRET=یک متن رندوم مثل my_secret_2026
+TELEGRAM_BOT_TOKEN=توکن بات از BotFather
+TELEGRAM_WEBHOOK_SECRET=یک متن دلخواه و محرمانه
 SUPABASE_URL=https://qkhrzwrkcpeqbenntzpq.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=کلید Secret یا service_role از Supabase
+SUPABASE_SERVICE_ROLE_KEY=کلید service_role یا secret از Supabase
 ```
 
-نکته مهم: `SUPABASE_SERVICE_ROLE_KEY` را فقط در Vercel Environment Variable بگذار. این کلید نباید داخل `src/config.js` یا فایل‌های فرانت قرار بگیرد.
+بعد از اضافه کردن Envها، حتماً Redeploy بگیر.
 
-بعد از ذخیره Environment Variables، دوباره Deploy بگیر.
+## اجرای SQL
 
-## 4. ست‌کردن Webhook تلگرام
+فایل `supabase.sql` نسخه جدید را داخل Supabase SQL Editor اجرا کن.
 
-بعد از اینکه پروژه روی Vercel بالا آمد، این دستور را اجرا کن. آدرس دامنه را با دامنه پروژه خودت عوض کن:
+این نسخه دو ستون جدید به جدول اتصال تلگرام اضافه می‌کند:
+
+```sql
+bot_state text
+bot_payload jsonb
+```
+
+اگر نسخه قبلی را داری، اجرای دوباره SQL مشکلی ایجاد نمی‌کند.
+
+## تنظیم Webhook
+
+بعد از deploy، وبهوک را تنظیم کن:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
@@ -60,68 +67,18 @@ curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
   -d "drop_pending_updates=true"
 ```
 
-اگر ویندوز داری و `curl` اذیت کرد، می‌توانی همین آدرس را در Postman به صورت POST بزنی.
+## تست
 
-## 5. استفاده از بات
-
-اول در وب‌اپ یک حساب بساز، مثلاً:
-
-```txt
-username: ali_123
-password: 1234
-```
-
-بعد در تلگرام به بات پیام بده:
+داخل تلگرام بزن:
 
 ```txt
 /start
 ```
 
-برای اتصال حساب:
+بعد حساب را وصل کن:
 
 ```txt
 /connect ali_123 1234
 ```
 
-برای افزودن یادداشت:
-
-```txt
-/add ایده پروژه | برای پروژه جدید باید بات تلگرام را به دیتابیس وصل کنم
-```
-
-برای لیست یادداشت‌ها:
-
-```txt
-/notes
-```
-
-برای جستجو:
-
-```txt
-/search پروژه
-```
-
-برای قطع اتصال:
-
-```txt
-/unlink
-```
-
-بعد از اتصال، هر متن ساده‌ای که به بات بفرستی، به عنوان یادداشت جدید ذخیره می‌شود.
-
-## نکته امنیتی
-
-این نسخه برای پروژه دانشجویی و تستی مناسب است. چون دستور `/connect username password` رمز را داخل چت تلگرام می‌فرستد، برای پروژه واقعی بهتر است به‌جای رمز عبور، از کد اتصال یک‌بارمصرف داخل وب‌اپ استفاده شود.
-
-
-## عیب‌یابی سریع بات تلگرام
-
-اگر Webhook ست شد ولی بات جواب نمی‌دهد، اول آدرس زیر را در مرورگر باز کن:
-
-```txt
-https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram
-```
-
-باید `ok: true` و وضعیت Environment Variableها را ببینی. اگر هرکدام `false` بود، همان متغیر را در Vercel اضافه کن و Redeploy بگیر.
-
-بعد در Vercel از بخش `Functions / Logs` خطاهای `/api/telegram` را ببین. نسخه جدید اگر خطای Supabase یا Telegram رخ بدهد، تلاش می‌کند متن خطا را داخل خود چت تلگرام هم بفرستد.
+بعد از اتصال، بیشتر کارها از دکمه‌ها انجام می‌شود.
