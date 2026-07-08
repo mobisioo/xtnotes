@@ -17,56 +17,109 @@
 
   <main class="app-shell">
     <section id="authView" class="auth-screen">
-      <form id="authForm" class="auth-card" autocomplete="on">
-        <div class="auth-brand">
-          <div class="logo-mark" aria-hidden="true">ن</div>
-          <h1>یادداشت‌ها</h1>
-        </div>
-
-        <div class="tabs" role="tablist" aria-label="حالت ورود">
-          <button id="showLoginBtn" class="tab active" type="button">ورود</button>
-          <button id="showRegisterBtn" class="tab" type="button">ثبت‌نام</button>
-        </div>
-
-        <label class="field-group">
-          <span>نام کاربری</span>
-          <div class="input-shell">
-            <span class="field-icon" aria-hidden="true">👤</span>
-            <input
-              id="usernameInput"
-              type="text"
-              placeholder="نام کاربری "
-              required
-              minlength="3"
-              maxlength="30"
-              autocomplete="username"
-              dir="ltr"
-            />
+      <div class="auth-layout">
+        <aside class="auth-showcase" aria-label="معرفی امکانات نوت‌پد">
+          <div class="brand-row">
+            <div class="app-logo" aria-hidden="true">⌘</div>
+            <div>
+              <span class="eyebrow">NotePad Bot</span>
+              <h1>نوت‌پد حرفه‌ای برای کد، متن و تلگرام</h1>
+            </div>
           </div>
-        </label>
 
-        <label class="field-group">
-          <span>رمز عبور</span>
-          <div class="input-shell">
-            <span class="field-icon" aria-hidden="true">⌘</span>
-            <input
-              id="passwordInput"
-              type="password"
-              placeholder="رمز عبور"
-              required
-              minlength="4"
-              pattern="[0-9]{4,}"
-              inputmode="numeric"
-              autocomplete="current-password"
-              dir="ltr"
-            />
+          <p class="auth-lead">
+            یادداشت‌ها، اسنیپت‌ها و کوئری‌های SQL / DAX / Python را سریع ذخیره کن، داخل وب‌اپ و بات تلگرام ببین و با هایلایتینگ حرفه‌ای و فرمت خودکار ویرایش کن.
+          </p>
+
+          <div class="feature-grid" aria-label="ویژگی‌های اصلی">
+            <div class="feature-card">
+              <span class="feature-icon code">&lt;/&gt;</span>
+              <strong>ادیتور حرفه‌ای</strong>
+              <p>شماره خط، هایلایتینگ، حالت تمرکز و فرمت کد</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon cloud">☁</span>
+              <strong>همگام‌سازی ابری</strong>
+              <p>ذخیره امن روی Supabase و دسترسی سریع</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon telegram">◌</span>
+              <strong>تلگرام Mini App</strong>
+              <p>اجرای وب‌اپ داخل بات با منوی دکمه‌ای</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon lock">▣</span>
+              <strong>دسترسی امن</strong>
+              <p>ورود با نام کاربری و نشست اختصاصی</p>
+            </div>
           </div>
-        </label>
 
+          <div class="preview-terminal" dir="ltr" aria-hidden="true">
+            <div class="terminal-head">
+              <span></span><span></span><span></span>
+              <b>query.sql</b>
+            </div>
+            <pre><code>SELECT c.name, SUM(o.total_amount)
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id
+WHERE c.status = 'active'
+GROUP BY c.name
+ORDER BY SUM(o.total_amount) DESC;</code></pre>
+          </div>
+        </aside>
 
-        <button id="submitAuthBtn" class="primary-btn" type="submit">ورود</button>
-        <p id="authMessage" class="message" aria-live="polite"></p>
-      </form>
+        <form id="authForm" class="auth-card" autocomplete="on">
+          <div class="auth-brand">
+            <div class="logo-mark" aria-hidden="true">ن</div>
+            <span class="eyebrow">ورود به حساب کاربری</span>
+            <h2>دفترچه یادداشت</h2>
+            <p>برای مدیریت یادداشت‌ها وارد حساب خودت شو.</p>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="حالت ورود">
+            <button id="showLoginBtn" class="tab active" type="button">ورود</button>
+            <button id="showRegisterBtn" class="tab" type="button">ثبت‌نام</button>
+          </div>
+
+          <label class="field-group">
+            <span>نام کاربری</span>
+            <div class="input-shell">
+              <span class="field-icon" aria-hidden="true">👤</span>
+              <input
+                id="usernameInput"
+                type="text"
+                placeholder="username"
+                required
+                minlength="3"
+                maxlength="30"
+                autocomplete="username"
+                dir="ltr"
+              />
+            </div>
+          </label>
+
+          <label class="field-group">
+            <span>رمز عبور</span>
+            <div class="input-shell">
+              <span class="field-icon" aria-hidden="true">⌘</span>
+              <input
+                id="passwordInput"
+                type="password"
+                placeholder="1234"
+                required
+                minlength="4"
+                pattern="[0-9]{4,}"
+                inputmode="numeric"
+                autocomplete="current-password"
+                dir="ltr"
+              />
+            </div>
+          </label>
+
+          <button id="submitAuthBtn" class="primary-btn" type="submit">ورود</button>
+          <p id="authMessage" class="message" aria-live="polite"></p>
+        </form>
+      </div>
     </section>
 
     <section id="notesView" class="notes-screen hidden">
@@ -80,6 +133,12 @@
 
         <div class="search-box">
           <input id="searchInput" type="search" placeholder="جستجو در یادداشت‌ها..." />
+        </div>
+
+        <div class="sidebar-quick-stats" aria-label="آمار سریع">
+          <div><strong id="statTotalNotes">۰</strong><span>کل</span></div>
+          <div><strong id="statCodeNotes">۰</strong><span>کد</span></div>
+          <div><strong id="statPinnedNotes">۰</strong><span>پین</span></div>
         </div>
 
         <div class="sidebar-title-row">
@@ -97,8 +156,12 @@
 
       <section class="editor-panel">
         <header class="workspace-topbar">
-          <div class="profile-chip" aria-hidden="true">
-            <span>م</span>
+          <div class="workspace-title">
+            <div class="profile-chip" aria-hidden="true">NP</div>
+            <div>
+              <span class="eyebrow">Professional Note Workspace</span>
+              <h2>یادداشت‌های من</h2>
+            </div>
           </div>
           <button id="newNoteBtn" class="primary-btn" type="button">+ یادداشت جدید</button>
         </header>
@@ -174,6 +237,50 @@
           <p id="noteMessage" class="message editor-message" aria-live="polite"></p>
         </article>
       </section>
+
+      <aside class="details-panel" aria-label="جزئیات یادداشت">
+        <header class="details-header">
+          <span class="eyebrow">Note Details</span>
+          <h2>جزئیات یادداشت</h2>
+        </header>
+
+        <div class="detail-card active-detail">
+          <span class="detail-label">عنوان</span>
+          <strong id="detailTitle">هنوز یادداشتی انتخاب نشده</strong>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-card">
+            <span class="detail-label">زبان</span>
+            <strong id="detailLanguage">—</strong>
+          </div>
+          <div class="detail-card">
+            <span class="detail-label">وضعیت</span>
+            <strong id="detailPinned">—</strong>
+          </div>
+          <div class="detail-card">
+            <span class="detail-label">خط</span>
+            <strong id="detailLines">۰</strong>
+          </div>
+          <div class="detail-card">
+            <span class="detail-label">کاراکتر</span>
+            <strong id="detailChars">۰</strong>
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <span class="detail-label">آخرین تغییر</span>
+          <strong id="detailUpdated">—</strong>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-card-head">
+            <span>پیش‌نمایش</span>
+            <span id="activeLanguageBadge" class="language-pill">Text</span>
+          </div>
+          <pre id="detailPreview" dir="ltr">یک یادداشت را انتخاب کن...</pre>
+        </div>
+      </aside>
     </section>
   </main>
 

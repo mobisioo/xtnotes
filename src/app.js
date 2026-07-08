@@ -153,6 +153,17 @@ const copyCodeBtn = $("#copyCodeBtn");
 const focusModeBtn = $("#focusModeBtn");
 const editorMeta = $("#editorMeta");
 const codeEditorHost = $("#codeEditor");
+const statTotalNotes = $("#statTotalNotes");
+const statCodeNotes = $("#statCodeNotes");
+const statPinnedNotes = $("#statPinnedNotes");
+const detailTitle = $("#detailTitle");
+const detailLanguage = $("#detailLanguage");
+const detailLines = $("#detailLines");
+const detailChars = $("#detailChars");
+const detailUpdated = $("#detailUpdated");
+const detailPinned = $("#detailPinned");
+const detailPreview = $("#detailPreview");
+const activeLanguageBadge = $("#activeLanguageBadge");
 
 const state = {
   authMode: "login",
@@ -335,14 +346,39 @@ function refreshCodeEditor() {
   });
 }
 
-function updateEditorMeta() {
+function getEditorMetrics() {
   const content = getEditorContent();
+  return {
+    content,
+    lines: content ? content.split("\n").length : 1,
+    chars: content.length,
+  };
+}
+
+function updateDetailPanel() {
+  const activeNote = getActiveNote();
+  const language = normalizeLanguage(languageSelect.value || activeNote?.language);
+  const metrics = getEditorMetrics();
+  const preview = metrics.content.trim() || "یک یادداشت را انتخاب کن...";
+  const title = noteTitle.value.trim() || activeNote?.title || "هنوز یادداشتی انتخاب نشده";
+
+  if (detailTitle) detailTitle.textContent = title;
+  if (detailLanguage) detailLanguage.textContent = activeNote ? getLanguageLabel(language) : "—";
+  if (detailLines) detailLines.textContent = toPersianDigits(activeNote ? metrics.lines : 0);
+  if (detailChars) detailChars.textContent = toPersianDigits(activeNote ? metrics.chars : 0);
+  if (detailUpdated) detailUpdated.textContent = activeNote?.updated_at ? formatDate(activeNote.updated_at) : "—";
+  if (detailPinned) detailPinned.textContent = activeNote ? (activeNote.is_pinned ? "پین شده" : "معمولی") : "—";
+  if (activeLanguageBadge) activeLanguageBadge.textContent = activeNote ? getLanguageLabel(language) : "Text";
+  if (detailPreview) detailPreview.textContent = activeNote ? preview.slice(0, 1200) : "یک یادداشت را انتخاب کن...";
+}
+
+function updateEditorMeta() {
+  const { content, lines, chars } = getEditorMetrics();
   const activeLanguage = normalizeLanguage(languageSelect.value);
-  const lines = content ? content.split("\n").length : 1;
-  const chars = content.length;
   const canFormat = Boolean(LANGUAGE_CONFIG[activeLanguage]?.prettier || LANGUAGE_CONFIG[activeLanguage]?.formatter);
 
   editorMeta.textContent = `${getLanguageLabel(activeLanguage)} · ${toPersianDigits(lines)} خط · ${toPersianDigits(chars)} کاراکتر${canFormat ? " · فرمت فعال" : " · فقط هایلایت"}`;
+  updateDetailPanel();
 }
 
 function initializeCodeEditor() {
@@ -414,11 +450,19 @@ function updateEditorState() {
   }
 
   updateEditorMeta();
+  updateDetailPanel();
   refreshCodeEditor();
 }
 
 function updateStats() {
-  notesCount.textContent = `${toPersianDigits(state.notes.length)} یادداشت`;
+  const total = state.notes.length;
+  const codeNotes = state.notes.filter((note) => normalizeLanguage(note.language) !== DEFAULT_LANGUAGE).length;
+  const pinned = state.notes.filter((note) => note.is_pinned).length;
+
+  notesCount.textContent = `${toPersianDigits(total)} یادداشت`;
+  if (statTotalNotes) statTotalNotes.textContent = toPersianDigits(total);
+  if (statCodeNotes) statCodeNotes.textContent = toPersianDigits(codeNotes);
+  if (statPinnedNotes) statPinnedNotes.textContent = toPersianDigits(pinned);
 }
 
 function renderNotes() {
@@ -483,6 +527,7 @@ function selectNote(id) {
   setEditorContent(note.content ?? "");
   setMessage(noteMessage);
   updateEditorState();
+  updateDetailPanel();
   renderNotes();
 }
 
@@ -649,6 +694,7 @@ async function saveNote() {
   state.notes = sortNotes(state.notes.map((note) => (note.id === updatedNote.id ? updatedNote : note)));
   state.activeNoteId = updatedNote.id;
   renderNotes();
+  updateDetailPanel();
   lastSync.textContent = "ذخیره شد";
   setMessage(noteMessage, "ذخیره شد.", "success");
 }
@@ -690,6 +736,7 @@ async function deleteNote() {
 
   renderNotes();
   updateEditorState();
+  updateDetailPanel();
   setMessage(noteMessage, "یادداشت حذف شد.", "success");
 }
 
@@ -718,6 +765,7 @@ async function togglePin() {
   state.activeNoteId = updatedNote.id;
   renderNotes();
   updateEditorState();
+  updateDetailPanel();
   setMessage(noteMessage, updatedNote.is_pinned ? "یادداشت پین شد." : "پین برداشته شد.", "success");
 }
 
@@ -984,6 +1032,8 @@ focusModeBtn.addEventListener("click", () => {
   focusModeBtn.textContent = state.isFocusMode ? "خروج از تمرکز" : "تمرکز";
   refreshCodeEditor();
 });
+
+noteTitle.addEventListener("input", updateDetailPanel);
 
 noteTitle.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
