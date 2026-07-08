@@ -9,6 +9,17 @@ const requiredEnv = [
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
 
+function getSafeDiagnostics() {
+  return {
+    ok: true,
+    endpoint: "telegram webhook",
+    message: "Endpoint is deployed. Telegram must call this URL with POST.",
+    env: Object.fromEntries(
+      requiredEnv.map((name) => [name, Boolean(process.env[name])]),
+    ),
+  };
+}
+
 function getEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing environment variable: ${name}`);
@@ -301,7 +312,15 @@ async function processUpdate(update) {
 }
 
 export default async function handler(req, res) {
+  let update = null;
+
   try {
+    // GET is only for human diagnostics in browser/Vercel, not for Telegram.
+    if (req.method === "GET") {
+      res.status(200).json(getSafeDiagnostics());
+      return;
+    }
+
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, message: "Method not allowed" });
       return;
@@ -311,16 +330,36 @@ export default async function handler(req, res) {
     const receivedSecret = req.headers["x-telegram-bot-api-secret-token"];
 
     if (!receivedSecret || receivedSecret !== expectedSecret) {
+      console.error("Invalid webhook secret", { hasReceivedSecret: Boolean(receivedSecret) });
       res.status(401).json({ ok: false, message: "Invalid webhook secret" });
       return;
     }
 
-    const update = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    update = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     await processUpdate(update);
 
     res.status(200).json({ ok: true });
   } catch (error) {
-    console.error(error);
+    console.error("Telegram webhook error:", {
+      message: error?.message,
+      stack: error?.stack,
+      update,
+    });
+
+    // Try to show the error to the tester inside Telegram instead of failing silently.
+    try {
+      const chatId = getMessage(update)?.chat?.id;
+      if (chatId) {
+        await sendMessage(
+          chatId,
+          `خطای داخلی بات رخ داد.\nجزئیات کوتاه: ${error?.message || "Unknown error"}`.slice(0, 900),
+        );
+      }
+    } catch (sendError) {
+      console.error("Could not send Telegram error message:", sendError);
+    }
+
+    // Telegram should still receive 200 so it does not retry the same broken update forever.
     res.status(200).json({ ok: true });
   }
 }

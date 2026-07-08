@@ -230,3 +230,16 @@ TELEGRAM_SETUP.md
 /search کلمه
 /unlink
 ```
+
+
+## عیب‌یابی سریع بات تلگرام
+
+اگر Webhook ست شد ولی بات جواب نمی‌دهد، اول آدرس زیر را در مرورگر باز کن:
+
+```txt
+https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram
+```
+
+باید `ok: true` و وضعیت Environment Variableها را ببینی. اگر هرکدام `false` بود، همان متغیر را در Vercel اضافه کن و Redeploy بگیر.
+
+بعد در Vercel از بخش `Functions / Logs` خطاهای `/api/telegram` را ببین. نسخه جدید اگر خطای Supabase یا Telegram رخ بدهد، تلاش می‌کند متن خطا را داخل خود چت تلگرام هم بفرستد.
