@@ -25,10 +25,18 @@ create table if not exists public.app_notes (
   user_id uuid not null references public.app_users(id) on delete cascade,
   title text not null default '',
   content text not null default '',
+  language text not null default 'plaintext',
   is_pinned boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.app_notes
+  add column if not exists language text not null default 'plaintext';
+
+update public.app_notes
+set language = 'plaintext'
+where language is null or trim(language) = '';
 
 alter table public.app_users enable row level security;
 alter table public.app_sessions enable row level security;
@@ -164,11 +172,15 @@ begin
 end;
 $$;
 
+drop function if exists public.app_create_note(uuid, text, text);
+drop function if exists public.app_update_note(uuid, uuid, text, text, boolean);
+
 create or replace function public.app_list_notes(p_session_token uuid)
 returns table (
   id uuid,
   title text,
   content text,
+  language text,
   is_pinned boolean,
   created_at timestamptz,
   updated_at timestamptz
@@ -183,7 +195,14 @@ begin
   v_user_id := public.app_get_user_id(p_session_token);
 
   return query
-  select n.id, n.title, n.content, n.is_pinned, n.created_at, n.updated_at
+  select
+    n.id,
+    n.title,
+    n.content,
+    coalesce(nullif(n.language, ''), 'plaintext') as language,
+    n.is_pinned,
+    n.created_at,
+    n.updated_at
   from public.app_notes n
   where n.user_id = v_user_id
   order by n.is_pinned desc, n.updated_at desc;
@@ -193,12 +212,14 @@ $$;
 create or replace function public.app_create_note(
   p_session_token uuid,
   p_title text default 'نوت جدید',
-  p_content text default ''
+  p_content text default '',
+  p_language text default 'plaintext'
 )
 returns table (
   id uuid,
   title text,
   content text,
+  language text,
   is_pinned boolean,
   created_at timestamptz,
   updated_at timestamptz
@@ -209,16 +230,37 @@ set search_path = public, extensions
 as $$
 declare
   v_user_id uuid;
+  v_language text;
 begin
   v_user_id := public.app_get_user_id(p_session_token);
+  v_language := coalesce(nullif(trim(p_language), ''), 'plaintext');
 
   return query
   with inserted as (
-    insert into public.app_notes (user_id, title, content)
-    values (v_user_id, coalesce(nullif(trim(p_title), ''), 'نوت جدید'), coalesce(p_content, ''))
-    returning app_notes.id, app_notes.title, app_notes.content, app_notes.is_pinned, app_notes.created_at, app_notes.updated_at
+    insert into public.app_notes (user_id, title, content, language)
+    values (
+      v_user_id,
+      coalesce(nullif(trim(p_title), ''), 'نوت جدید'),
+      coalesce(p_content, ''),
+      v_language
+    )
+    returning
+      app_notes.id,
+      app_notes.title,
+      app_notes.content,
+      app_notes.language,
+      app_notes.is_pinned,
+      app_notes.created_at,
+      app_notes.updated_at
   )
-  select inserted.id, inserted.title, inserted.content, inserted.is_pinned, inserted.created_at, inserted.updated_at
+  select
+    inserted.id,
+    inserted.title,
+    inserted.content,
+    inserted.language,
+    inserted.is_pinned,
+    inserted.created_at,
+    inserted.updated_at
   from inserted;
 end;
 $$;
@@ -228,12 +270,14 @@ create or replace function public.app_update_note(
   p_note_id uuid,
   p_title text,
   p_content text,
-  p_is_pinned boolean default null
+  p_is_pinned boolean default null,
+  p_language text default null
 )
 returns table (
   id uuid,
   title text,
   content text,
+  language text,
   is_pinned boolean,
   created_at timestamptz,
   updated_at timestamptz
@@ -253,13 +297,21 @@ begin
     set
       title = coalesce(nullif(trim(p_title), ''), 'بدون عنوان'),
       content = coalesce(p_content, ''),
+      language = coalesce(nullif(trim(p_language), ''), n.language, 'plaintext'),
       is_pinned = coalesce(p_is_pinned, n.is_pinned),
       updated_at = now()
     where n.id = p_note_id
       and n.user_id = v_user_id
-    returning n.id, n.title, n.content, n.is_pinned, n.created_at, n.updated_at
+    returning n.id, n.title, n.content, n.language, n.is_pinned, n.created_at, n.updated_at
   )
-  select updated.id, updated.title, updated.content, updated.is_pinned, updated.created_at, updated.updated_at
+  select
+    updated.id,
+    updated.title,
+    updated.content,
+    updated.language,
+    updated.is_pinned,
+    updated.created_at,
+    updated.updated_at
   from updated;
 
   if not found then
@@ -295,16 +347,16 @@ revoke all on function public.app_register(text, text) from public;
 revoke all on function public.app_login(text, text) from public;
 revoke all on function public.app_logout(uuid) from public;
 revoke all on function public.app_list_notes(uuid) from public;
-revoke all on function public.app_create_note(uuid, text, text) from public;
-revoke all on function public.app_update_note(uuid, uuid, text, text, boolean) from public;
+revoke all on function public.app_create_note(uuid, text, text, text) from public;
+revoke all on function public.app_update_note(uuid, uuid, text, text, boolean, text) from public;
 revoke all on function public.app_delete_note(uuid, uuid) from public;
 
 grant execute on function public.app_register(text, text) to anon, authenticated;
 grant execute on function public.app_login(text, text) to anon, authenticated;
 grant execute on function public.app_logout(uuid) to anon, authenticated;
 grant execute on function public.app_list_notes(uuid) to anon, authenticated;
-grant execute on function public.app_create_note(uuid, text, text) to anon, authenticated;
-grant execute on function public.app_update_note(uuid, uuid, text, text, boolean) to anon, authenticated;
+grant execute on function public.app_create_note(uuid, text, text, text) to anon, authenticated;
+grant execute on function public.app_update_note(uuid, uuid, text, text, boolean, text) to anon, authenticated;
 grant execute on function public.app_delete_note(uuid, uuid) to anon, authenticated;
 
 -- مهم: بعد از تغییر تابع‌ها، کش PostgREST را تازه می‌کنیم تا RPCها در API دیده شوند.

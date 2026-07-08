@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b0f17" />
-  <title>دفترچه یادداشت</title>
+  <title>نوت‌پد | تم تیره</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/theme/material-darker.css" />
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
 <body>
@@ -18,7 +20,8 @@
       <form id="authForm" class="auth-card" autocomplete="on">
         <div class="auth-brand">
           <div class="logo-mark" aria-hidden="true">ن</div>
-          <h1>دفترچه یادداشت</h1>
+          <h1>نوت‌پد</h1>
+          <p>یادداشت‌های شما، همیشه در دسترس</p>
         </div>
 
         <div class="tabs" role="tablist" aria-label="حالت ورود">
@@ -33,7 +36,7 @@
             <input
               id="usernameInput"
               type="text"
-              placeholder="نام کاربری"
+              placeholder="نام کاربری خود را وارد کنید"
               required
               minlength="3"
               maxlength="30"
@@ -50,7 +53,7 @@
             <input
               id="passwordInput"
               type="password"
-              placeholder="رمزعبور"
+              placeholder="۴ رقم وارد کنید؛ مثلاً 1234"
               required
               minlength="4"
               pattern="[0-9]{4,}"
@@ -61,6 +64,7 @@
           </div>
         </label>
 
+        <p class="auth-help">یوزرنیم فقط با حروف انگلیسی کوچک، عدد و خط زیر ساخته می‌شود؛ مثل <span dir="ltr">ali_123</span>. رمز عبور حداقل ۴ رقم باشد.</p>
 
         <button id="submitAuthBtn" class="primary-btn" type="submit">ورود</button>
         <p id="authMessage" class="message" aria-live="polite"></p>
@@ -71,7 +75,8 @@
       <aside class="sidebar">
         <header class="sidebar-brand">
           <div>
-            <h2>دفترچه یادداشت</h2>
+            <h2>نوت‌پد</h2>
+            <p>یادداشت‌های شما، همیشه در دسترس</p>
           </div>
           <div class="mini-logo" aria-hidden="true">ن</div>
         </header>
@@ -82,7 +87,7 @@
 
         <div class="sidebar-title-row">
           <span>یادداشت‌ها</span>
-          <span id="notesCount">۰ یادداشت‌ </span>
+          <span id="notesCount">۰ نوت</span>
         </div>
 
         <div id="notesList" class="notes-list" aria-live="polite"></div>
@@ -105,6 +110,7 @@
           <header class="editor-top">
             <div>
               <h2 id="editorHeading">افزودن یادداشت جدید</h2>
+              <p>ایده‌ها و افکار خود را یادداشت کنید.</p>
             </div>
             <span class="editor-icon" aria-hidden="true">▤</span>
           </header>
@@ -117,17 +123,48 @@
             </div>
           </label>
 
-          <label class="field-group editor-field editor-textarea-field">
-            <span>متن یادداشت</span>
-            <textarea id="noteContent" placeholder="اینجا بنویسید..." spellcheck="false"></textarea>
-          </label>
+          <section class="code-workspace" aria-label="ادیتور حرفه‌ای متن و کد">
+            <div class="code-toolbar">
+              <label class="language-picker">
+                <span>زبان</span>
+                <select id="languageSelect" aria-label="انتخاب زبان برنامه‌نویسی">
+                  <option value="plaintext">متن ساده</option>
+                  <option value="javascript">JavaScript</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="json">JSON</option>
+                  <option value="html">HTML</option>
+                  <option value="css">CSS</option>
+                  <option value="scss">SCSS</option>
+                  <option value="markdown">Markdown</option>
+                  <option value="yaml">YAML</option>
+                  <option value="graphql">GraphQL</option>
+                  <option value="sql">SQL</option>
+                  <option value="dax">DAX</option>
+                  <option value="python">Python</option>
+                  <option value="php">PHP</option>
+                  <option value="java">Java</option>
+                  <option value="csharp">C#</option>
+                  <option value="cpp">C++</option>
+                  <option value="go">Go</option>
+                  <option value="rust">Rust</option>
+                </select>
+              </label>
 
-          <div class="quick-tags" aria-label="دسته‌بندی ظاهری">
-            <span class="quick-tags-label">دسته‌بندی</span>
-            <button class="tag-chip active" type="button">شخصی</button>
-            <button class="tag-chip" type="button">کار</button>
+              <div class="code-actions" aria-label="ابزارهای ادیتور">
+                <button id="formatCodeBtn" class="outline-btn compact" type="button">فرمت / Prettier</button>
+                <button id="copyCodeBtn" class="outline-btn compact" type="button">کپی</button>
+                <button id="focusModeBtn" class="outline-btn compact" type="button">تمرکز</button>
+              </div>
+            </div>
 
-          </div>
+            <div class="editor-meta-row">
+              <span id="editorMeta">آماده برای نوشتن</span>
+              <span>Ctrl + S ذخیره · Ctrl + Enter ذخیره · Ctrl + Shift + F فرمت</span>
+            </div>
+
+            <div id="codeEditor" class="code-editor" dir="ltr"></div>
+            <textarea id="noteContent" class="hidden-source" hidden></textarea>
+          </section>
 
           <footer class="editor-footer">
             <button id="deleteNoteBtn" class="danger-btn" type="button">حذف</button>
@@ -144,6 +181,86 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/javascript/javascript.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/xml/xml.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/css/css.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/htmlmixed/htmlmixed.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/markdown/markdown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/yaml/yaml.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/sql/sql.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/python/python.js"></script>
+  <script>
+    (function () {
+      if (!window.CodeMirror) return;
+
+      var daxKeywords = /^(EVALUATE|MEASURE|DEFINE|VAR|RETURN|CALCULATE|FILTER|ALL|ALLEXCEPT|ALLSELECTED|REMOVEFILTERS|SUMX|AVERAGEX|COUNTX|COUNTROWS|DIVIDE|IF|SWITCH|TRUE|FALSE|AND|OR|NOT|SUMMARIZE|SUMMARIZECOLUMNS|ADDCOLUMNS|SELECTCOLUMNS|DATESYTD|SAMEPERIODLASTYEAR|RELATED|RELATEDTABLE|VALUES|SELECTEDVALUE|HASONEVALUE|ISBLANK|BLANK|FORMAT|DATEADD|TOTALYTD|TOTALMTD|TOTALQTD)$/i;
+
+      window.CodeMirror.defineMode("dax", function () {
+        return {
+          startState: function () {
+            return { inBlockComment: false };
+          },
+          token: function (stream, state) {
+            if (state.inBlockComment) {
+              if (stream.skipTo("*/")) {
+                stream.next();
+                stream.next();
+                state.inBlockComment = false;
+              } else {
+                stream.skipToEnd();
+              }
+              return "comment";
+            }
+
+            if (stream.eatSpace()) return null;
+            if (stream.match("//")) {
+              stream.skipToEnd();
+              return "comment";
+            }
+            if (stream.match("--")) {
+              stream.skipToEnd();
+              return "comment";
+            }
+            if (stream.match("/*")) {
+              state.inBlockComment = true;
+              return "comment";
+            }
+            if (stream.match(/"(?:[^\\"]|\\.)*"/)) return "string";
+            if (stream.match(/'(?:[^']|'')*'/)) return "string-2";
+            if (stream.match(/\[[^\]]+\]/)) return "property";
+            if (stream.match(/\b\d+(?:\.\d+)?\b/)) return "number";
+            if (stream.match(/[+\-*\/=<>!&|:]+/)) return "operator";
+
+            var word = stream.match(/[A-Za-z_][A-Za-z0-9_]*/);
+            if (word) {
+              return daxKeywords.test(word[0]) ? "keyword" : "variable";
+            }
+
+            stream.next();
+            return null;
+          }
+        };
+      });
+
+      window.CodeMirror.defineMIME("text/x-dax", "dax");
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/php/php.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/clike/clike.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/go/go.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/rust/rust.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/gfm/gfm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/graphql/graphql.js"></script>
+  <script src="https://unpkg.com/prettier@3/standalone.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/babel.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/estree.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/typescript.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/html.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/postcss.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/markdown.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/yaml.js"></script>
+  <script src="https://unpkg.com/prettier@3/plugins/graphql.js"></script>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>

@@ -298,3 +298,25 @@ https://YOUR-VERCEL-DOMAIN.vercel.app/api/telegram-setup?secret=TELEGRAM_WEBHOOK
 ```txt
 TELEGRAM_SETUP.md
 ```
+
+## نسخه v12 — ادیتور کدنویسی حرفه‌ای
+
+در این نسخه بخش تایپ و جزئیات یادداشت حرفه‌ای‌تر شده است:
+
+- ادیتور CodeMirror با شماره خط و هایلایت سینتکس
+- انتخاب زبان برای هر یادداشت
+- ذخیره زبان انتخاب‌شده داخل دیتابیس در ستون `language`
+- دکمه `فرمت / Prettier`
+- پشتیبانی از JavaScript، TypeScript، JSON، HTML، CSS، SCSS، Markdown، YAML، GraphQL، SQL، DAX، Python و چند زبان دیگر
+
+### SQL / DAX / Python
+
+برای این سه زبان، هایلایتینگ فعال است. چون Prettier به‌صورت رسمی formatter داخلی برای SQL، DAX و Python ندارد، دکمه فرمت در این پروژه برای آن‌ها از formatter داخلی سبک استفاده می‌کند:
+
+- SQL: خواناتر کردن keywordها، joinها، where/group/order و خطوط شرطی
+- DAX: خواناتر کردن VAR / RETURN و جداکردن آرگومان‌ها
+- Python: مرتب‌سازی فاصله‌ها، تبدیل tab به ۴ فاصله و indentation پایه
+
+### نکته مهم دیتابیس
+
+بعد از جایگزینی این نسخه، فایل `supabase.sql` را یک‌بار در Supabase اجرا کن، چون ستون `language` و امضای جدید RPCهای `app_create_note` و `app_update_note` اضافه شده‌اند.

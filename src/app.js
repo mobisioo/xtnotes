@@ -16,9 +16,111 @@ if (telegramWebApp) {
   document.documentElement.classList.add("telegram-webapp");
 }
 
-const STORAGE_KEY = "notepad_custom_session_v4";
+const STORAGE_KEY = "notepad_custom_session_v5";
 const USERNAME_PATTERN = /^[a-z0-9_]{3,30}$/;
 const PASSWORD_PATTERN = /^[0-9]{4,}$/;
+const DEFAULT_LANGUAGE = "plaintext";
+
+const LANGUAGE_CONFIG = {
+  plaintext: {
+    label: "متن ساده",
+    mode: null,
+    prettier: null,
+  },
+  javascript: {
+    label: "JavaScript",
+    mode: "javascript",
+    prettier: { parser: "babel", plugins: ["babel", "estree"] },
+  },
+  typescript: {
+    label: "TypeScript",
+    mode: "text/typescript",
+    prettier: { parser: "typescript", plugins: ["typescript", "estree"] },
+  },
+  json: {
+    label: "JSON",
+    mode: { name: "javascript", json: true },
+    prettier: { parser: "json", plugins: ["babel", "estree"] },
+  },
+  html: {
+    label: "HTML",
+    mode: "htmlmixed",
+    prettier: { parser: "html", plugins: ["html", "babel", "estree", "postcss"] },
+  },
+  css: {
+    label: "CSS",
+    mode: "css",
+    prettier: { parser: "css", plugins: ["postcss"] },
+  },
+  scss: {
+    label: "SCSS",
+    mode: "text/x-scss",
+    prettier: { parser: "scss", plugins: ["postcss"] },
+  },
+  markdown: {
+    label: "Markdown",
+    mode: "gfm",
+    prettier: { parser: "markdown", plugins: ["markdown"] },
+  },
+  yaml: {
+    label: "YAML",
+    mode: "yaml",
+    prettier: { parser: "yaml", plugins: ["yaml"] },
+  },
+  graphql: {
+    label: "GraphQL",
+    mode: "graphql",
+    prettier: { parser: "graphql", plugins: ["graphql"] },
+  },
+  sql: {
+    label: "SQL",
+    mode: "sql",
+    prettier: null,
+    formatter: "sql",
+  },
+  dax: {
+    label: "DAX",
+    mode: "dax",
+    prettier: null,
+    formatter: "dax",
+  },
+  python: {
+    label: "Python",
+    mode: "python",
+    prettier: null,
+    formatter: "python",
+  },
+  php: {
+    label: "PHP",
+    mode: "php",
+    prettier: null,
+  },
+  java: {
+    label: "Java",
+    mode: "text/x-java",
+    prettier: null,
+  },
+  csharp: {
+    label: "C#",
+    mode: "text/x-csharp",
+    prettier: null,
+  },
+  cpp: {
+    label: "C++",
+    mode: "text/x-c++src",
+    prettier: null,
+  },
+  go: {
+    label: "Go",
+    mode: "go",
+    prettier: null,
+  },
+  rust: {
+    label: "Rust",
+    mode: "rust",
+    prettier: null,
+  },
+};
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -45,6 +147,12 @@ const noteTitle = $("#noteTitle");
 const noteContent = $("#noteContent");
 const noteMessage = $("#noteMessage");
 const editorHeading = $("#editorHeading");
+const languageSelect = $("#languageSelect");
+const formatCodeBtn = $("#formatCodeBtn");
+const copyCodeBtn = $("#copyCodeBtn");
+const focusModeBtn = $("#focusModeBtn");
+const editorMeta = $("#editorMeta");
+const codeEditorHost = $("#codeEditor");
 
 const state = {
   authMode: "login",
@@ -53,6 +161,9 @@ const state = {
   activeNoteId: null,
   loading: false,
   saving: false,
+  codeEditor: null,
+  editorReady: false,
+  isFocusMode: false,
 };
 
 function setMessage(element, text = "", type = "normal") {
@@ -95,6 +206,15 @@ function normalizeText(value) {
 
 function normalizeUsername(value) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function normalizeLanguage(value) {
+  const key = String(value ?? "").trim().toLowerCase();
+  return LANGUAGE_CONFIG[key] ? key : DEFAULT_LANGUAGE;
+}
+
+function getLanguageLabel(language) {
+  return LANGUAGE_CONFIG[normalizeLanguage(language)]?.label ?? LANGUAGE_CONFIG[DEFAULT_LANGUAGE].label;
 }
 
 function getSavedSession() {
@@ -152,6 +272,10 @@ function setButtonsDisabled(disabled) {
   deleteNoteBtn.disabled = disabled;
   pinNoteBtn.disabled = disabled;
   logoutBtn.disabled = disabled;
+  formatCodeBtn.disabled = disabled;
+  copyCodeBtn.disabled = disabled;
+  focusModeBtn.disabled = disabled;
+  languageSelect.disabled = disabled;
 }
 
 function showAuth() {
@@ -162,6 +286,7 @@ function showAuth() {
 function showNotes() {
   authView.classList.add("hidden");
   notesView.classList.remove("hidden");
+  refreshCodeEditor();
 }
 
 function setAuthMode(mode) {
@@ -175,27 +300,125 @@ function setAuthMode(mode) {
   setMessage(authMessage);
 }
 
+function getEditorContent() {
+  if (state.codeEditor) return state.codeEditor.getValue();
+  return noteContent.value;
+}
+
+function setEditorContent(value = "") {
+  noteContent.value = value ?? "";
+
+  if (state.codeEditor && state.codeEditor.getValue() !== noteContent.value) {
+    state.codeEditor.setValue(noteContent.value);
+    state.codeEditor.clearHistory();
+  }
+
+  updateEditorMeta();
+}
+
+function setEditorLanguage(language) {
+  const normalized = normalizeLanguage(language);
+  languageSelect.value = normalized;
+  const config = LANGUAGE_CONFIG[normalized];
+
+  if (state.codeEditor) {
+    state.codeEditor.setOption("mode", config.mode);
+    window.CodeMirror?.autoLoadMode?.(state.codeEditor, config.mode);
+  }
+
+  updateEditorMeta();
+}
+
+function refreshCodeEditor() {
+  window.requestAnimationFrame(() => {
+    state.codeEditor?.refresh();
+  });
+}
+
+function updateEditorMeta() {
+  const content = getEditorContent();
+  const activeLanguage = normalizeLanguage(languageSelect.value);
+  const lines = content ? content.split("\n").length : 1;
+  const chars = content.length;
+  const canFormat = Boolean(LANGUAGE_CONFIG[activeLanguage]?.prettier || LANGUAGE_CONFIG[activeLanguage]?.formatter);
+
+  editorMeta.textContent = `${getLanguageLabel(activeLanguage)} · ${toPersianDigits(lines)} خط · ${toPersianDigits(chars)} کاراکتر${canFormat ? " · فرمت فعال" : " · فقط هایلایت"}`;
+}
+
+function initializeCodeEditor() {
+  if (state.codeEditor || !codeEditorHost || !window.CodeMirror) return;
+
+  state.codeEditor = window.CodeMirror(codeEditorHost, {
+    value: "",
+    mode: null,
+    theme: "material-darker",
+    lineNumbers: true,
+    lineWrapping: false,
+    indentUnit: 2,
+    tabSize: 2,
+    smartIndent: true,
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    styleActiveLine: true,
+    direction: "ltr",
+    readOnly: "nocursor",
+    extraKeys: {
+      "Ctrl-S": (editor) => {
+        saveNote();
+        return false;
+      },
+      "Cmd-S": (editor) => {
+        saveNote();
+        return false;
+      },
+      "Ctrl-Enter": () => saveNote(),
+      "Cmd-Enter": () => saveNote(),
+      "Ctrl-Shift-F": () => formatCode(),
+      "Cmd-Shift-F": () => formatCode(),
+    },
+  });
+
+  state.codeEditor.on("change", () => {
+    noteContent.value = state.codeEditor.getValue();
+    updateEditorMeta();
+  });
+
+  state.editorReady = true;
+  updateEditorMeta();
+}
+
 function updateEditorState() {
   const activeNote = getActiveNote();
   const hasNote = Boolean(activeNote);
 
   noteTitle.disabled = !hasNote;
-  noteContent.disabled = !hasNote;
+  languageSelect.disabled = !hasNote;
+  formatCodeBtn.disabled = !hasNote || state.saving;
+  copyCodeBtn.disabled = !hasNote || state.saving;
+  focusModeBtn.disabled = !hasNote || state.saving;
   saveNoteBtn.disabled = !hasNote || state.saving;
   deleteNoteBtn.disabled = !hasNote || state.saving;
   pinNoteBtn.disabled = !hasNote || state.saving;
+
+  if (state.codeEditor) {
+    state.codeEditor.setOption("readOnly", hasNote ? false : "nocursor");
+  }
 
   editorHeading.textContent = hasNote ? "ویرایش یادداشت" : "افزودن یادداشت جدید";
   pinNoteBtn.textContent = activeNote?.is_pinned ? "برداشتن پین" : "پین";
 
   if (!hasNote) {
     noteTitle.value = "";
-    noteContent.value = "";
+    setEditorLanguage(DEFAULT_LANGUAGE);
+    setEditorContent("");
   }
+
+  updateEditorMeta();
+  refreshCodeEditor();
 }
 
 function updateStats() {
-  notesCount.textContent = `${toPersianDigits(state.notes.length)} یادداشت‌ `;
+  notesCount.textContent = `${toPersianDigits(state.notes.length)} نوت`;
 }
 
 function renderNotes() {
@@ -203,7 +426,8 @@ function renderNotes() {
   const filtered = state.notes.filter((note) => {
     const title = normalizeText(note.title);
     const content = normalizeText(note.content);
-    return title.includes(keyword) || content.includes(keyword);
+    const language = normalizeText(getLanguageLabel(note.language));
+    return title.includes(keyword) || content.includes(keyword) || language.includes(keyword);
   });
 
   notesList.innerHTML = "";
@@ -212,7 +436,7 @@ function renderNotes() {
   if (filtered.length === 0) {
     notesList.innerHTML = `
       <div class="empty-state">
-        ${keyword ? "یادداشت‌  با این جستجو پیدا نشد." : "هنوز یادداشت‌  نداری. از دکمه «یادداشت‌  جدید» شروع کن."}
+        ${keyword ? "نوتی با این جستجو پیدا نشد." : "هنوز نوتی نداری. از دکمه «نوت جدید» شروع کن."}
       </div>
     `;
     return;
@@ -228,11 +452,16 @@ function renderNotes() {
 
     const title = note.title?.trim() || "بدون عنوان";
     const content = note.content?.trim() || "بدون متن";
+    const language = normalizeLanguage(note.language);
 
     button.innerHTML = `
       <div class="note-item-header">
         <h3>${note.is_pinned ? '<span class="pin-badge">★</span> ' : ""}${escapeHtml(title)}</h3>
         <span class="note-date">${escapeHtml(formatDate(note.updated_at))}</span>
+      </div>
+      <div class="note-item-meta">
+        <span class="language-badge">${escapeHtml(getLanguageLabel(language))}</span>
+        <span>${toPersianDigits(content.split("\n").length)} خط</span>
       </div>
       <p>${escapeHtml(content)}</p>
     `;
@@ -250,14 +479,15 @@ function selectNote(id) {
 
   state.activeNoteId = id;
   noteTitle.value = note.title ?? "";
-  noteContent.value = note.content ?? "";
+  setEditorLanguage(note.language ?? DEFAULT_LANGUAGE);
+  setEditorContent(note.content ?? "");
   setMessage(noteMessage);
   updateEditorState();
   renderNotes();
 }
 
 function sortNotes(notes) {
-  return [...notes].sort((a, b) => {
+  return [...notes].filter(Boolean).sort((a, b) => {
     if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
     return new Date(b.updated_at) - new Date(a.updated_at);
   });
@@ -287,11 +517,11 @@ function getReadableError(error) {
   }
 
   if ((lower.includes("gen_salt") || lower.includes("crypt")) && lower.includes("does not exist")) {
-    return "اکستنشن pgcrypto یا search_path دیتابیس درست تنظیم نشده است. فایل supabase.sql نسخه v4 را کامل داخل SQL Editor اجرا کن.";
+    return "اکستنشن pgcrypto یا search_path دیتابیس درست تنظیم نشده است. فایل supabase.sql را کامل داخل SQL Editor اجرا کن.";
   }
 
   if (lower.includes("function") && lower.includes("does not exist")) {
-    return "تابع‌های دیتابیس در API دیده نمی‌شوند. فایل supabase.sql نسخه v4 را اجرا کن و سپس دستور NOTIFY pgrst, 'reload schema'; را بزن.";
+    return "تابع‌های دیتابیس در API دیده نمی‌شوند. فایل supabase.sql نسخه جدید را اجرا کن و سپس دستور NOTIFY pgrst, 'reload schema'; را بزن.";
   }
 
   return message;
@@ -332,7 +562,10 @@ async function loadNotes({ keepActive = false } = {}) {
     return;
   }
 
-  state.notes = sortNotes(data ?? []);
+  state.notes = sortNotes(data ?? []).map((note) => ({
+    ...note,
+    language: normalizeLanguage(note.language),
+  }));
 
   if (keepActive && activeBeforeLoad && state.notes.some((note) => note.id === activeBeforeLoad)) {
     state.activeNoteId = activeBeforeLoad;
@@ -343,7 +576,8 @@ async function loadNotes({ keepActive = false } = {}) {
   if (state.activeNoteId) {
     const selected = getActiveNote();
     noteTitle.value = selected?.title ?? "";
-    noteContent.value = selected?.content ?? "";
+    setEditorLanguage(selected?.language ?? DEFAULT_LANGUAGE);
+    setEditorContent(selected?.content ?? "");
   }
 
   renderNotes();
@@ -353,13 +587,15 @@ async function loadNotes({ keepActive = false } = {}) {
 }
 
 async function createNote() {
-  setMessage(noteMessage, "در حال ساخت یادداشت‌ جدید...");
+  const selectedLanguage = normalizeLanguage(languageSelect.value);
+  setMessage(noteMessage, "در حال ساخت نوت جدید...");
   setButtonsDisabled(true);
 
   const { data, error } = await supabase.rpc("app_create_note", {
     p_session_token: getSessionToken(),
-    p_title: "یادداشت‌ جدید",
+    p_title: selectedLanguage === DEFAULT_LANGUAGE ? "نوت جدید" : `${getLanguageLabel(selectedLanguage)} Snippet`,
     p_content: "",
+    p_language: selectedLanguage,
   });
 
   setButtonsDisabled(false);
@@ -370,22 +606,23 @@ async function createNote() {
   }
 
   const newNote = firstRow(data);
-  state.notes = sortNotes([newNote, ...state.notes]);
+  state.notes = sortNotes([{ ...newNote, language: normalizeLanguage(newNote.language) }, ...state.notes]);
   selectNote(newNote.id);
   noteTitle.focus();
   noteTitle.select();
-  setMessage(noteMessage, "یادداشت‌ جدید ساخته شد.", "success");
+  setMessage(noteMessage, "نوت جدید ساخته شد.", "success");
 }
 
 async function saveNote() {
   const activeNote = getActiveNote();
   if (!activeNote) {
-    setMessage(noteMessage, "اول یک یادداشت‌ بساز یا انتخاب کن.", "error");
+    setMessage(noteMessage, "اول یک نوت بساز یا انتخاب کن.", "error");
     return;
   }
 
   const title = noteTitle.value.trim() || "بدون عنوان";
-  const content = noteContent.value;
+  const content = getEditorContent();
+  const language = normalizeLanguage(languageSelect.value);
 
   state.saving = true;
   updateEditorState();
@@ -397,6 +634,7 @@ async function saveNote() {
     p_title: title,
     p_content: content,
     p_is_pinned: activeNote.is_pinned,
+    p_language: language,
   });
 
   state.saving = false;
@@ -407,7 +645,7 @@ async function saveNote() {
     return;
   }
 
-  const updatedNote = firstRow(data);
+  const updatedNote = { ...firstRow(data), language };
   state.notes = sortNotes(state.notes.map((note) => (note.id === updatedNote.id ? updatedNote : note)));
   state.activeNoteId = updatedNote.id;
   renderNotes();
@@ -418,11 +656,11 @@ async function saveNote() {
 async function deleteNote() {
   const activeNote = getActiveNote();
   if (!activeNote) {
-    setMessage(noteMessage, "یادداشت‌ برای حذف انتخاب نشده.", "error");
+    setMessage(noteMessage, "نوتی برای حذف انتخاب نشده.", "error");
     return;
   }
 
-  const confirmed = window.confirm("این یادداشت‌ حذف شود؟");
+  const confirmed = window.confirm("این نوت حذف شود؟");
   if (!confirmed) return;
 
   setButtonsDisabled(true);
@@ -446,12 +684,13 @@ async function deleteNote() {
   if (state.activeNoteId) {
     const selected = getActiveNote();
     noteTitle.value = selected?.title ?? "";
-    noteContent.value = selected?.content ?? "";
+    setEditorLanguage(selected?.language ?? DEFAULT_LANGUAGE);
+    setEditorContent(selected?.content ?? "");
   }
 
   renderNotes();
   updateEditorState();
-  setMessage(noteMessage, "یادداشت‌ حذف شد.", "success");
+  setMessage(noteMessage, "نوت حذف شد.", "success");
 }
 
 async function togglePin() {
@@ -466,6 +705,7 @@ async function togglePin() {
     p_title: activeNote.title ?? "بدون عنوان",
     p_content: activeNote.content ?? "",
     p_is_pinned: !activeNote.is_pinned,
+    p_language: normalizeLanguage(activeNote.language),
   });
 
   if (error) {
@@ -473,12 +713,185 @@ async function togglePin() {
     return;
   }
 
-  const updatedNote = firstRow(data);
+  const updatedNote = { ...firstRow(data), language: normalizeLanguage(firstRow(data)?.language) };
   state.notes = sortNotes(state.notes.map((note) => (note.id === updatedNote.id ? updatedNote : note)));
   state.activeNoteId = updatedNote.id;
   renderNotes();
   updateEditorState();
-  setMessage(noteMessage, updatedNote.is_pinned ? "یادداشت‌  پین شد." : "پین برداشته شد.", "success");
+  setMessage(noteMessage, updatedNote.is_pinned ? "نوت پین شد." : "پین برداشته شد.", "success");
+}
+
+function getPrettierPlugin(name) {
+  return window.prettierPlugins?.[name];
+}
+
+async function formatCode() {
+  const activeNote = getActiveNote();
+  if (!activeNote) {
+    setMessage(noteMessage, "اول یک نوت بساز یا انتخاب کن.", "error");
+    return;
+  }
+
+  const language = normalizeLanguage(languageSelect.value);
+  const config = LANGUAGE_CONFIG[language];
+  const prettierConfig = config?.prettier;
+  const customFormatter = config?.formatter;
+
+  try {
+    setMessage(noteMessage, "در حال فرمت کردن...");
+    formatCodeBtn.disabled = true;
+
+    if (prettierConfig) {
+      if (!window.prettier || !window.prettierPlugins) {
+        setMessage(noteMessage, "Prettier هنوز لود نشده است. اتصال اینترنت/CDN را چک کن.", "error");
+        return;
+      }
+
+      const plugins = prettierConfig.plugins.map(getPrettierPlugin).filter(Boolean);
+      const formatted = await window.prettier.format(getEditorContent(), {
+        parser: prettierConfig.parser,
+        plugins,
+        semi: true,
+        singleQuote: false,
+        printWidth: 90,
+        tabWidth: 2,
+        trailingComma: "es5",
+      });
+
+      setEditorContent(formatted.trimEnd());
+      state.codeEditor?.focus();
+      setMessage(noteMessage, "کد با Prettier مرتب شد.", "success");
+      return;
+    }
+
+    if (customFormatter) {
+      const formatted = formatWithBuiltInFormatter(getEditorContent(), customFormatter);
+      setEditorContent(formatted.trimEnd());
+      state.codeEditor?.focus();
+      setMessage(noteMessage, `${getLanguageLabel(language)} مرتب شد.`, "success");
+      return;
+    }
+
+    setMessage(noteMessage, `برای ${getLanguageLabel(language)} فقط هایلایتینگ فعال است.`, "error");
+  } catch (error) {
+    setMessage(noteMessage, `فرمت انجام نشد: ${error.message}`, "error");
+  } finally {
+    formatCodeBtn.disabled = false;
+  }
+}
+
+function formatWithBuiltInFormatter(source, formatter) {
+  const value = String(source || "").replace(/\r\n/g, "\n");
+
+  if (formatter === "sql") return formatSqlLike(value);
+  if (formatter === "dax") return formatDax(value);
+  if (formatter === "python") return formatPython(value);
+
+  return value;
+}
+
+function formatSqlLike(source) {
+  const upperKeywords = [
+    "select", "from", "where", "group by", "order by", "having", "limit", "offset",
+    "insert into", "values", "update", "set", "delete", "create", "alter", "drop",
+    "left join", "right join", "inner join", "full join", "cross join", "join", "on",
+    "union all", "union", "case", "when", "then", "else", "end", "and", "or", "as"
+  ];
+
+  let formatted = source.trim();
+  if (!formatted) return "";
+
+  for (const keyword of upperKeywords.sort((a, b) => b.length - a.length)) {
+    const pattern = new RegExp(`\\b${keyword.replace(/ /g, "\\s+")}\\b`, "gi");
+    formatted = formatted.replace(pattern, keyword.toUpperCase());
+  }
+
+  formatted = formatted
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s*;\s*/g, ";\n")
+    .replace(/\b(FROM|WHERE|GROUP BY|ORDER BY|HAVING|LIMIT|OFFSET|VALUES|SET)\b/g, "\n$1")
+    .replace(/\b(LEFT JOIN|RIGHT JOIN|INNER JOIN|FULL JOIN|CROSS JOIN|JOIN|UNION ALL|UNION)\b/g, "\n$1")
+    .replace(/\b(AND|OR)\b/g, "\n  $1")
+    .replace(/,\s*(?=[^)]*(?:\(|$))/g, ",\n  ");
+
+  return formatted
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line, index, arr) => line.trim() || arr[index - 1]?.trim())
+    .join("\n")
+    .trim();
+}
+
+function formatDax(source) {
+  const keywords = [
+    "measure", "evaluate", "var", "return", "calculate", "filter", "all", "allexcept", "sumx",
+    "averagex", "countx", "countrows", "if", "switch", "true", "false", "and", "or", "not",
+    "summarize", "addcolumns", "selectcolumns", "datesytd", "sameperiodlastyear", "related", "relatedtable"
+  ];
+
+  let formatted = source.trim();
+  if (!formatted) return "";
+
+  for (const keyword of keywords.sort((a, b) => b.length - a.length)) {
+    const pattern = new RegExp(`\\b${keyword}\\b`, "gi");
+    formatted = formatted.replace(pattern, keyword.toUpperCase());
+  }
+
+  formatted = formatted
+    .replace(/\s+/g, " ")
+    .replace(/\s*:=\s*/g, " := ")
+    .replace(/\s*=\s*/g, " = ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\bVAR\b/g, "\nVAR")
+    .replace(/\bRETURN\b/g, "\nRETURN")
+    .replace(/,\s*/g, ",\n  ")
+    .replace(/\(\s*/g, "(")
+    .replace(/\s*\)/g, ")");
+
+  return formatted
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function formatPython(source) {
+  let indentLevel = 0;
+  const dedentStarters = /^(elif\b|else:|except\b|finally:)/;
+
+  return source
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\t/g, "    "))
+    .map((line) => line.trim())
+    .map((line) => {
+      if (!line) return "";
+      if (dedentStarters.test(line)) indentLevel = Math.max(0, indentLevel - 1);
+      const output = `${"    ".repeat(indentLevel)}${line}`;
+      if (line.endsWith(":") && !line.startsWith("#")) indentLevel += 1;
+      if (/^(return|pass|break|continue|raise)\b/.test(line)) indentLevel = Math.max(0, indentLevel - 1);
+      return output;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function copyCode() {
+  const content = getEditorContent();
+  if (!content.trim()) {
+    setMessage(noteMessage, "متنی برای کپی وجود ندارد.", "error");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(content);
+    setMessage(noteMessage, "متن کپی شد.", "success");
+  } catch {
+    setMessage(noteMessage, "مرورگر اجازه کپی خودکار نداد. متن را دستی انتخاب کن.", "error");
+  }
 }
 
 async function handleAuthSubmit(event) {
@@ -534,6 +947,7 @@ async function logout() {
 }
 
 async function bootstrap() {
+  initializeCodeEditor();
   setAuthMode("login");
   updateEditorState();
 
@@ -558,23 +972,38 @@ saveNoteBtn.addEventListener("click", saveNote);
 deleteNoteBtn.addEventListener("click", deleteNote);
 pinNoteBtn.addEventListener("click", togglePin);
 searchInput.addEventListener("input", renderNotes);
-
-[noteTitle, noteContent].forEach((element) => {
-  element.addEventListener("keydown", (event) => {
-    if (event.ctrlKey && event.key === "Enter") {
-      event.preventDefault();
-      saveNote();
-    }
-  });
+languageSelect.addEventListener("change", () => {
+  setEditorLanguage(languageSelect.value);
+  setMessage(noteMessage, `${getLanguageLabel(languageSelect.value)} انتخاب شد.`, "success");
+});
+formatCodeBtn.addEventListener("click", formatCode);
+copyCodeBtn.addEventListener("click", copyCode);
+focusModeBtn.addEventListener("click", () => {
+  state.isFocusMode = !state.isFocusMode;
+  document.documentElement.classList.toggle("focus-editor", state.isFocusMode);
+  focusModeBtn.textContent = state.isFocusMode ? "خروج از تمرکز" : "تمرکز";
+  refreshCodeEditor();
 });
 
-document.querySelectorAll(".tag-chip").forEach((chip) => {
-  chip.addEventListener("click", () => {
-    if (chip.classList.contains("add")) return;
+noteTitle.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    event.preventDefault();
+    saveNote();
+  }
+});
 
-    document.querySelectorAll(".tag-chip").forEach((item) => item.classList.remove("active"));
-    chip.classList.add("active");
-  });
+document.addEventListener("keydown", (event) => {
+  const key = event.key.toLowerCase();
+
+  if ((event.ctrlKey || event.metaKey) && key === "s") {
+    event.preventDefault();
+    saveNote();
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === "f") {
+    event.preventDefault();
+    formatCode();
+  }
 });
 
 bootstrap();
