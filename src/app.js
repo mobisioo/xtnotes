@@ -195,7 +195,7 @@ function updateEditorState() {
 }
 
 function updateStats() {
-  notesCount.textContent = `${toPersianDigits(state.notes.length)} نوت`;
+  notesCount.textContent = `${toPersianDigits(state.notes.length)} یادداشت‌ `;
 }
 
 function renderNotes() {
@@ -212,7 +212,7 @@ function renderNotes() {
   if (filtered.length === 0) {
     notesList.innerHTML = `
       <div class="empty-state">
-        ${keyword ? "نوتی با این جستجو پیدا نشد." : "هنوز نوتی نداری. از دکمه «نوت جدید» شروع کن."}
+        ${keyword ? "یادداشت‌  با این جستجو پیدا نشد." : "هنوز یادداشت‌  نداری. از دکمه «یادداشت‌  جدید» شروع کن."}
       </div>
     `;
     return;
@@ -353,12 +353,12 @@ async function loadNotes({ keepActive = false } = {}) {
 }
 
 async function createNote() {
-  setMessage(noteMessage, "در حال ساخت نوت جدید...");
+  setMessage(noteMessage, "در حال ساخت یادداشت‌ جدید...");
   setButtonsDisabled(true);
 
   const { data, error } = await supabase.rpc("app_create_note", {
     p_session_token: getSessionToken(),
-    p_title: "نوت جدید",
+    p_title: "یادداشت‌ جدید",
     p_content: "",
   });
 
@@ -374,13 +374,13 @@ async function createNote() {
   selectNote(newNote.id);
   noteTitle.focus();
   noteTitle.select();
-  setMessage(noteMessage, "نوت جدید ساخته شد.", "success");
+  setMessage(noteMessage, "یادداشت‌ جدید ساخته شد.", "success");
 }
 
 async function saveNote() {
   const activeNote = getActiveNote();
   if (!activeNote) {
-    setMessage(noteMessage, "اول یک نوت بساز یا انتخاب کن.", "error");
+    setMessage(noteMessage, "اول یک یادداشت‌ بساز یا انتخاب کن.", "error");
     return;
   }
 
@@ -418,11 +418,11 @@ async function saveNote() {
 async function deleteNote() {
   const activeNote = getActiveNote();
   if (!activeNote) {
-    setMessage(noteMessage, "نوتی برای حذف انتخاب نشده.", "error");
+    setMessage(noteMessage, "یادداشت‌ برای حذف انتخاب نشده.", "error");
     return;
   }
 
-  const confirmed = window.confirm("این نوت حذف شود؟");
+  const confirmed = window.confirm("این یادداشت‌ حذف شود؟");
   if (!confirmed) return;
 
   setButtonsDisabled(true);
@@ -451,7 +451,7 @@ async function deleteNote() {
 
   renderNotes();
   updateEditorState();
-  setMessage(noteMessage, "نوت حذف شد.", "success");
+  setMessage(noteMessage, "یادداشت‌ حذف شد.", "success");
 }
 
 async function togglePin() {
@@ -478,7 +478,7 @@ async function togglePin() {
   state.activeNoteId = updatedNote.id;
   renderNotes();
   updateEditorState();
-  setMessage(noteMessage, updatedNote.is_pinned ? "نوت پین شد." : "پین برداشته شد.", "success");
+  setMessage(noteMessage, updatedNote.is_pinned ? "یادداشت‌  پین شد." : "پین برداشته شد.", "success");
 }
 
 async function handleAuthSubmit(event) {
